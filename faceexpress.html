@@ -1,0 +1,398 @@
+<html>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <head>
+        <title>Real-Time Facial Emotion Detection</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Kumbh+Sans:wght@200;300;400;500;600;700;800;900&family=Roboto+Condensed:ital,wght@0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,500;1,600;1,700;1,800;1,900&display=swap" rel="stylesheet">
+
+
+        <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@2.4.0/dist/tf.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/face-landmarks-detection@0.0.1/dist/face-landmarks-detection.js"></script>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://apis.google.com/js/api.js"></script>
+
+     <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Latest compiled and minified CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    
+    </head>
+    <body>
+        <h1 id="status">Please wait Couple of mints !</h1>
+        <div class="video-display">
+            <canvas id="output" ></canvas>
+            <!-- Loading spinner -->
+           <div class="loading-spinner"></div>
+        </div>
+       
+        <video id="webcam" playsinline style="
+            visibility: hidden; display: none;
+            width: 100%;
+            height: 100%;
+            ">
+        </video>
+
+
+
+        <!-- Congratulations area start -->
+        <!-- Overlay container -->
+  <div id="overlay" class="overlay"  onclick="closePopup()"></div>
+ 
+        <div class="pop-container" id="popup"  onclick="closePopup()">
+            <div class="popup-card">
+                <div class="congratulation-area text-center mt-5">
+                
+                    <div class="container">
+                        <div class="congratulation-wrapper">
+                            <div class="congratulation-contents center-text">
+                                <div class="congratulation-contents-icon">
+                                    <i class="fas fa-check"></i>
+                                </div>
+                                <h4 class="congratulation-contents-title" id="msg">Congratulations! </h4>
+                                <p class="congratulation-contents-para"> Thanks for your rating we will touch you!. </p>
+                                <div class="btn-wrapper mt-4">
+                                    <a href="https://docs.google.com/spreadsheets/d/108FOkissHsZc2d4PK8PUoH-7fqFO0aaE1Qw_XgAnuHA/edit#gid=0" class="cmn-btn btn-bg-1" > Go to Home </a>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="close" onclick="closePopup()">
+                            <i class="fas fa-close"></i>
+                        </div>
+                    </div>
+                </div>
+              </div>
+        </div>
+       
+
+    <!-- Congratulations area end -->
+
+<form action="" method="post">
+    
+ <table>
+        <th>
+            
+        </th>
+        <tbody>
+            <tr>
+                <input type="text"  value="" name="faces" id="facesInput" hidden>
+               <input type="text"  value="" name="expressions" id="expressionsInput" hidden>
+            
+            </tr>
+            <tr>
+                <div class="form-btn">
+                    <button type="submit" id="sub" value="" onclick="showPopup()" class="fixed-button">Vote me</button>
+                </div>
+                
+            </tr>
+            
+        </tbody> 
+    </table>
+    
+
+</form>
+<script>
+    let form = document.querySelector("form");
+    // The document.querySelector() method returns the first element that matches a specified CSS selector.
+    form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        // The preventDefault() method stops the form from submitting and prevents the page from refreshing.
+        document.querySelector("#sub").innerHTML = "Voting..";
+        // Change the value of the submit button to "Submitting..." while the form is being submitted.
+        let data = new FormData(form);
+        // The FormData() method creates a new FormData object that contains the values of all the form fields.
+        fetch('https://script.google.com/macros/s/AKfycbxFeQJrRd_DTau0ifVVR-FfXq8VkrrQRmTCPJMqpHjCPxEogDrly1yHOzUVbUGxKGrN/exec', {
+                method: "POST",
+                body: data
+            })
+            // The fetch() method is used to make a request to the server and retrieve data.
+            // This is an example API endpoint. Replace it with the actual URL for the API endpoint you want to use.
+            .then(res => res.text())
+            //.then(data => console.log(data));
+            // The .then() method is used to handle the response from the server.
+            // The response is converted to text using the res.text() method.
+            .then(data => {
+
+               
+        document.getElementById('popup').style.display = 'block';
+       
+        document.getElementById('overlay').style.display = 'block';
+               
+    
+                document.body.classList.add('body-no-scroll');
+               //background animation
+                start();
+                stop();
+      
+                document.querySelector("#msg").innerHTML = data;
+                // The innerHTML property sets or returns the HTML content of an element.
+                // Here, we are setting the content of the <h1> element to the response from the server.
+                document.querySelector("#sub").innerHTML = "Submit"
+                // Change the value of the submit button back to "Submit" after the form has been submitted.
+            });
+
+            // Reset the form
+        form.reset();
+        document.querySelector("#msg").innerHTML = "";
+    })
+</script>
+
+
+        <!-- Add an HTML table to display the detected emotions -->
+    
+    <table id="emotionTable" class="expression-table">
+        <thead >
+            <tr>
+                <th>Face</th>
+                <th>Detected Emotion</th>
+            </tr>
+        </thead>
+        <tbody>
+           
+            <!-- Emotion data will be added dynamically here -->
+            
+        </tbody>
+    </table>
+
+        <script>
+        function setText( text ) {
+            document.getElementById( "status" ).innerText = text;
+        }
+
+        function drawLine( ctx, x1, y1, x2, y2 ) {
+            ctx.beginPath();
+            ctx.moveTo( x1, y1 );
+            ctx.lineTo( x2, y2 );
+            ctx.stroke();
+        }
+
+        async function setupWebcam() {
+            return new Promise( ( resolve, reject ) => {
+                const webcamElement = document.getElementById( "webcam" );
+                const navigatorAny = navigator;
+                navigator.getUserMedia = navigator.getUserMedia ||
+                navigatorAny.webkitGetUserMedia || navigatorAny.mozGetUserMedia ||
+                navigatorAny.msGetUserMedia;
+                if( navigator.getUserMedia ) {
+                    navigator.getUserMedia( { video: true },
+                        stream => {
+                            webcamElement.srcObject = stream;
+                            webcamElement.addEventListener( "loadeddata", resolve, false );
+                        },
+                    error => reject());
+                }
+                else {
+                    reject();
+                }
+            });
+        }
+
+        const emotions = [ "angry", "disgust", "fear", "happy", "neutral", "sad", "surprise" ];
+        let emotionModel = null;
+
+        let output = null;
+        let model = null;
+
+        async function predictEmotion( points ) {
+            let result = tf.tidy( () => {
+                const xs = tf.stack( [ tf.tensor1d( points ) ] );
+                return emotionModel.predict( xs );
+            });
+            let prediction = await result.data();
+            result.dispose();
+            // Get the index of the maximum value
+            let id = prediction.indexOf( Math.max( ...prediction ) );
+            return emotions[ id ];
+        }
+
+        let faceCount = 0; // Variable to track the number of detected faces
+        
+
+        async function trackFace() {
+            const video = document.querySelector( "video" );
+            const faces = await model.estimateFaces( {
+                input: video,
+                returnTensors: false,
+                flipHorizontal: false,
+            });
+            output.drawImage(
+                video,
+                0, 0, video.width, video.height,
+                0, 0, video.width, video.height
+            );
+
+            let points = null;
+            faces.forEach( face => {
+                // Draw the bounding box
+                const x1 = face.boundingBox.topLeft[ 0 ];
+                const y1 = face.boundingBox.topLeft[ 1 ];
+                const x2 = face.boundingBox.bottomRight[ 0 ];
+                const y2 = face.boundingBox.bottomRight[ 1 ];
+                const bWidth = x2 - x1;
+                const bHeight = y2 - y1;
+                drawLine( output, x1, y1, x2, y1 );
+                drawLine( output, x2, y1, x2, y2 );
+                drawLine( output, x1, y2, x2, y2 );
+                drawLine( output, x1, y1, x1, y2 );
+
+                // Add just the nose, cheeks, eyes, eyebrows & mouth
+                const features = [
+                    "noseTip",
+                    "leftCheek",
+                    "rightCheek",
+                    "leftEyeLower1", "leftEyeUpper1",
+                    "rightEyeLower1", "rightEyeUpper1",
+                    "leftEyebrowLower", //"leftEyebrowUpper",
+                    "rightEyebrowLower", //"rightEyebrowUpper",
+                    "lipsLowerInner", //"lipsLowerOuter",
+                    "lipsUpperInner", //"lipsUpperOuter",
+                ];
+                points = [];
+                features.forEach( feature => {
+                    face.annotations[ feature ].forEach( x => {
+                        points.push( ( x[ 0 ] - x1 ) / bWidth );
+                        points.push( ( x[ 1 ] - y1 ) / bHeight );
+                    });
+                });
+            });
+
+            if( points ) {
+                let emotion = await predictEmotion( points );
+                setText( `Detected: ${emotion}` );
+                console.log( `Detected: ${emotion}` );
+
+                // Update the HTML table with the detected emotion
+        updateEmotionTable(faceCount, emotion);
+        faceCount++;
+            }
+            else {
+                setText( "No Face" );
+            }
+
+            setTimeout(() => {
+        requestAnimationFrame(trackFace);
+    }, 1000 / 15); // Adjust the frame rate as needed (e.g., 15 frames per second)
+        }
+
+
+function updateEmotionTable(faceIndex, emotion) {
+    const tableBody = document.querySelector("#emotionTable tbody");
+
+    // Create a new row
+    const newRow = tableBody.insertRow();
+
+    // Add cells to the row
+    const faceCell = newRow.insertCell(0);
+    const emotionCell = newRow.insertCell(1);
+
+    // Populate cells with data
+    faceCell.textContent = `Face ${faceIndex + 1}`;
+    emotionCell.textContent = emotion;
+
+    //  // Update hidden input values
+     const facesInput = document.getElementById("facesInput");
+     const expressionsInput = document.getElementById("expressionsInput");
+
+    facesInput.value += `Poses ${faceIndex + 1} - ${emotion},`;
+     expressionsInput.value += `${emotion},`;
+
+    
+}
+   (async () => {
+            await setupWebcam();
+            const video = document.getElementById( "webcam" );
+            video.play();
+            let videoWidth = video.videoWidth;
+            let videoHeight = video.videoHeight;
+            video.width = videoWidth;
+            video.height = videoHeight;
+
+            let canvas = document.getElementById( "output" );
+            canvas.width = video.width;
+            canvas.height = video.height;
+
+            output = canvas.getContext( "2d" );
+            output.translate( canvas.width, 0 );
+            output.scale( -1, 1 ); // Mirror cam
+            output.fillStyle = "#fdffb6";
+            output.strokeStyle = "#fdffb6";
+            output.lineWidth = 2;
+
+            // Load Face Landmarks Detection
+            model = await faceLandmarksDetection.load(
+                faceLandmarksDetection.SupportedPackages.mediapipeFacemesh
+            );
+            // Load Emotion Detection
+            emotionModel = await tf.loadLayersModel( 'web/model/facemo.json' );
+
+            setText( "Loaded!" );
+
+            trackFace();
+        })();
+        </script>
+
+
+<script src="https://apis.google.com/js/client.js?onload=handleClientLoad"></script>
+<!--<script>
+    const CLIENT_ID = '152193885568-qo5m8np810787qs0h0jfmqbtc0bd9mf1.apps.googleusercontent.com';
+    const API_KEY = 'AIzaSyBSC8HMfpvRH72UdSsWgSznHT7UAJL1fZ4';
+    const SPREADSHEET_ID = '1hdsXmhbAyQ3tXamOE2QYtUT_EUgFQ872UTTCezHh6RQ';
+    const SCOPES = 'https://www.googleapis.com/auth/spreadsheets';
+  
+    function handleClientLoad() {
+      gapi.load('client:auth2', initClient);
+    }
+  
+    function initClient() {
+      gapi.client.init({
+        apiKey: API_KEY,
+        clientId: CLIENT_ID,
+        discoveryDocs: ['https://sheets.googleapis.com/$discovery/rest?version=v4'],
+        scope: SCOPES,
+      }).then(() => {
+        // Listen for sign-in state changes.
+        gapi.auth2.getAuthInstance().isSignedIn.listen(updateSignInStatus);
+  
+        // Handle the initial sign-in state.
+        updateSignInStatus(gapi.auth2.getAuthInstance().isSignedIn.get());
+      });
+    }
+  
+    function updateSignInStatus(isSignedIn) {
+      if (isSignedIn) {
+        // User is signed in, update the table in Google Sheets.
+        updateGoogleSheet();
+      } else {
+        // User is not signed in, prompt user to sign in.
+        gapi.auth2.getAuthInstance().signIn();
+      }
+    }
+  
+    function updateGoogleSheet() {
+      const tableRows = document.querySelectorAll("#emotionTable tbody tr");
+  
+      const values = tableRows.map(row => {
+        const cells = row.cells;
+        return [cells[0].textContent, cells[1].textContent];
+      });
+  
+      gapi.client.sheets.spreadsheets.values.update({
+        spreadsheetId: SPREADSHEET_ID,
+        range: 'face',  // Replace with your sheet name
+        valueInputOption: 'RAW',
+        resource: { values },
+      }).then((response) => {
+        console.log('Sheet updated successfully:', response);
+        showAlert('Values stored in Google Sheets successfully!');
+      }, (error) => {
+        console.error('Error updating sheet:', error.result.error.message);
+        showAlert('Error storing values in Google Sheets. Please try again.');
+      });
+    }
+  </script>-->
+<!-- Latest compiled JavaScript -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>   
+<script src="web/emotionscript.js"></script> 
+</body>
+</html>

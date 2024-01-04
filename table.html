@@ -1,0 +1,399 @@
+<html>
+    <head>
+        <title>Real-Time Facial Emotion Detection</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Kumbh+Sans:wght@200;300;400;500;600;700;800;900&family=Roboto+Condensed:ital,wght@0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,500;1,600;1,700;1,800;1,900&display=swap" rel="stylesheet">
+
+
+        <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@2.4.0/dist/tf.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/face-landmarks-detection@0.0.1/dist/face-landmarks-detection.js"></script>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        body{
+            font-family: 'Kumbh Sans', sans-serif;
+font-family: 'Roboto Condensed', sans-serif;
+           
+            width: 100vw;
+            height: 100vh;
+            overflow-x: hidden;
+            
+            
+        }
+        #status{
+            
+            text-align: center;
+            font-weight: 600;
+            font-size: 40px;
+            padding: 30px;
+            background-color: aqua;
+            font-family: 'Kumbh Sans', sans-serif;
+            margin: 0px;
+        }
+
+        @media only screen and (max-width:768px) {
+            #output {
+            border-radius: 5px; /* Adjust the border radius if needed */
+			width: 100% !important;
+            height: 100% !important;
+            text-align: center;
+     
+    }
+    body{
+            font-family: 'Kumbh Sans', sans-serif;
+            font-family: 'Roboto Condensed', sans-serif;
+           display: inline-table;
+            
+        }
+        }
+     
+	canvas{
+        width: 100%;
+        height: 100%;
+       
+    }	
+
+  /* Center-align the table */
+table {
+    width: 80%; /* Adjust the width as needed */
+    margin: auto;
+    border-collapse: collapse;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); /* Add a subtle box shadow */
+    border-radius: 8px; /* Add rounded corners */
+    overflow: hidden; /* Hide overflow content */
+}
+
+/* Style table header */
+th, td {
+    padding: 15px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+}
+
+th {
+    background-color: #3498db;
+    color: white;
+}
+
+/* Style alternating rows */
+tr:nth-child(even) {
+    background-color: #f2f2f2;
+}
+
+/* Hover effect on rows */
+tr:hover {
+    background-color: #e5e5e5;
+}
+
+
+    
+    </style>
+    </head>
+    <body>
+        
+       
+        
+        <!-- Container to hold dynamic input fields -->
+<div id="inputContainer"></div>
+
+<!-- Table to display values -->
+<table id="dynamicTable">
+    <thead>
+        <tr>
+            <th>Index</th>
+            <th>Value</th>
+        </tr>
+    </thead>
+    <tbody></tbody>
+</table>
+
+<!-- Script section -->
+<script>
+    // Counter to keep track of input fields and table rows
+    let counter = 1;
+
+    // Function to create input fields
+    function createInputField() {
+        // Create input element
+        const inputElement = document.createElement("input");
+
+        // Set attributes for input element
+        inputElement.type = "text";
+        inputElement.addEventListener("input", handleInputChange);
+
+        // Append input element to the container
+        const inputContainer = document.getElementById("inputContainer");
+        inputContainer.appendChild(inputElement);
+
+        // Add a line break for better readability
+        inputContainer.appendChild(document.createElement("br"));
+    }
+
+    // Function to handle input change
+    function handleInputChange(event) {
+        const inputValue = event.target.value.trim();
+
+        // Check if the input value is not empty
+        if (inputValue !== "") {
+            // Create a new input field
+            createInputField();
+
+            // Add the value to the table
+            addToTable(counter, inputValue);
+
+            // Increment the counter
+            counter++;
+        }
+    }
+
+    // Function to add a new row to the table
+    function addToTable(index, value) {
+        // Get the table body
+        const tableBody = document.getElementById("dynamicTable").getElementsByTagName("tbody")[0];
+
+        // Create a new row
+        const newRow = tableBody.insertRow();
+
+        // Add cells to the row
+        const indexCell = newRow.insertCell(0);
+        const valueCell = newRow.insertCell(1);
+
+        // Populate cells with data
+        indexCell.textContent = index;
+        valueCell.textContent = value;
+    }
+
+    // Initial creation of the first input field
+    createInputField();
+</script>
+
+        
+        
+
+        <!-- Add an HTML table to display the detected emotions -->
+    <table id="emotionTable">
+        <thead>
+            <tr>
+                <th>Face</th>
+                <th>Detected Emotion</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Emotion data will be added dynamically here -->
+        </tbody>
+    </table>
+       
+        <script>
+        function setText( text ) {
+            document.getElementById( "status" ).innerText = text;
+        }
+
+        function drawLine( ctx, x1, y1, x2, y2 ) {
+            ctx.beginPath();
+            ctx.moveTo( x1, y1 );
+            ctx.lineTo( x2, y2 );
+            ctx.stroke();
+        }
+
+        async function setupWebcam() {
+            return new Promise( ( resolve, reject ) => {
+                const webcamElement = document.getElementById( "webcam" );
+                const navigatorAny = navigator;
+                navigator.getUserMedia = navigator.getUserMedia ||
+                navigatorAny.webkitGetUserMedia || navigatorAny.mozGetUserMedia ||
+                navigatorAny.msGetUserMedia;
+                if( navigator.getUserMedia ) {
+                    navigator.getUserMedia( { video: true },
+                        stream => {
+                            webcamElement.srcObject = stream;
+                            webcamElement.addEventListener( "loadeddata", resolve, false );
+                        },
+                    error => reject());
+                }
+                else {
+                    reject();
+                }
+            });
+        }
+
+        const emotions = [ "angry", "disgust", "fear", "happy", "neutral", "sad", "surprise" ];
+        let emotionModel = null;
+
+        let output = null;
+        let model = null;
+
+        async function predictEmotion( points ) {
+            let result = tf.tidy( () => {
+                const xs = tf.stack( [ tf.tensor1d( points ) ] );
+                return emotionModel.predict( xs );
+            });
+            let prediction = await result.data();
+            result.dispose();
+            // Get the index of the maximum value
+            let id = prediction.indexOf( Math.max( ...prediction ) );
+            return emotions[ id ];
+        }
+
+        let faceCount = 0; // Variable to track the number of detected faces
+        
+
+        async function trackFace() {
+            const video = document.querySelector( "video" );
+            const faces = await model.estimateFaces( {
+                input: video,
+                returnTensors: false,
+                flipHorizontal: false,
+            });
+            output.drawImage(
+                video,
+                0, 0, video.width, video.height,
+                0, 0, video.width, video.height
+            );
+
+            let points = null;
+            faces.forEach( face => {
+                // Draw the bounding box
+                const x1 = face.boundingBox.topLeft[ 0 ];
+                const y1 = face.boundingBox.topLeft[ 1 ];
+                const x2 = face.boundingBox.bottomRight[ 0 ];
+                const y2 = face.boundingBox.bottomRight[ 1 ];
+                const bWidth = x2 - x1;
+                const bHeight = y2 - y1;
+                drawLine( output, x1, y1, x2, y1 );
+                drawLine( output, x2, y1, x2, y2 );
+                drawLine( output, x1, y2, x2, y2 );
+                drawLine( output, x1, y1, x1, y2 );
+
+                // Add just the nose, cheeks, eyes, eyebrows & mouth
+                const features = [
+                    "noseTip",
+                    "leftCheek",
+                    "rightCheek",
+                    "leftEyeLower1", "leftEyeUpper1",
+                    "rightEyeLower1", "rightEyeUpper1",
+                    "leftEyebrowLower", //"leftEyebrowUpper",
+                    "rightEyebrowLower", //"rightEyebrowUpper",
+                    "lipsLowerInner", //"lipsLowerOuter",
+                    "lipsUpperInner", //"lipsUpperOuter",
+                ];
+                points = [];
+                features.forEach( feature => {
+                    face.annotations[ feature ].forEach( x => {
+                        points.push( ( x[ 0 ] - x1 ) / bWidth );
+                        points.push( ( x[ 1 ] - y1 ) / bHeight );
+                    });
+                });
+            });
+
+            if( points ) {
+                let emotion = await predictEmotion( points );
+                setText( `Detected: ${emotion}` );
+                console.log( `Detected: ${emotion}` );
+
+                // Update the HTML table with the detected emotion
+        updateEmotionTable(faceCount, emotion);
+        faceCount++;
+            }
+            else {
+                setText( "No Face" );
+            }
+
+            requestAnimationFrame( trackFace );
+        }
+
+
+function updateEmotionTable(faceIndex, emotion) {
+    const tableBody = document.querySelector("#emotionTable tbody");
+
+    // Create a new row
+    const newRow = tableBody.insertRow();
+
+    // Add cells to the row
+    const faceCell = newRow.insertCell(0);
+    const emotionCell = newRow.insertCell(1);
+
+    // Populate cells with data
+    faceCell.textContent = `Face ${faceIndex + 1}`;
+    emotionCell.textContent = emotion;
+}
+
+
+
+        (async () => {
+            await setupWebcam();
+            const video = document.getElementById( "webcam" );
+            video.play();
+            let videoWidth = video.videoWidth;
+            let videoHeight = video.videoHeight;
+            video.width = videoWidth;
+            video.height = videoHeight;
+
+            let canvas = document.getElementById( "output" );
+            canvas.width = video.width;
+            canvas.height = video.height;
+
+            output = canvas.getContext( "2d" );
+            output.translate( canvas.width, 0 );
+            output.scale( -1, 1 ); // Mirror cam
+            output.fillStyle = "#fdffb6";
+            output.strokeStyle = "#fdffb6";
+            output.lineWidth = 2;
+
+            // Load Face Landmarks Detection
+            model = await faceLandmarksDetection.load(
+                faceLandmarksDetection.SupportedPackages.mediapipeFacemesh
+            );
+            // Load Emotion Detection
+            emotionModel = await tf.loadLayersModel( 'web/model/facemo.json' );
+
+            setText( "Loaded!" );
+
+            trackFace();
+        })();
+        </script>
+
+
+
+<script>
+    // JavaScript code to send data to Google Sheets
+    document.addEventListener('DOMContentLoaded', function () {
+        // Add your Google Sheets API key here
+        const apiKey = 'AIzaSyBSC8HMfpvRH72UdSsWgSznHT7UAJL1fZ4';
+
+        // Add your Google Sheets ID here
+        const sheetId = '1hdsXmhbAyQ3tXamOE2QYtUT_EUgFQ872UTTCezHh6RQ';
+
+        // Function to send data to Google Sheets
+        function sendDataToGoogleSheets(data) {
+            fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Sheet1:append?valueInputOption=RAW&key=${apiKey}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    values: [data],
+                }),
+            })
+            .then(response => response.json())
+            .then(result => console.log(result))
+            .catch(error => console.error('Error:', error));
+        }
+
+        // Fetch data from the table and send it to Google Sheets
+        function sendTableData() {
+            const table = document.getElementById('emotionTable');
+            const rows = table.getElementsByTagName('tbody')[0].getElementsByTagName('tr');
+
+            for (let i = 0; i < rows.length; i++) {
+                const cells = rows[i].getElementsByTagName('td');
+                const rowData = Array.from(cells).map(cell => cell.textContent);
+                sendDataToGoogleSheets(rowData);
+            }
+        }
+
+        // Call the function to send data to Google Sheets
+        sendTableData();
+    });
+</script>
+    </body>
+</html>
