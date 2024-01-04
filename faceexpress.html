@@ -68,9 +68,17 @@
 
     <!-- Congratulations area end -->
 
-<form action="" method="post">
+    <form action="" method="post">
     
- <table>
+        <input type="text" name="expressions" id="textarea" hidden>
+        <input type="text" name="faces" id="person" value="Client" hidden>
+        <div class="form-btn">
+            <button type="submit" id="sub" value="" onclick="showPopup()" class="fixed-button">Vote me</button>
+        </div>
+    </form>
+
+<!--<form action="" method="post">
+    <table>
         <th>
             
         </th>
@@ -89,9 +97,7 @@
             
         </tbody> 
     </table>
-    
-
-</form>
+</form>-->
 <script>
     let form = document.querySelector("form");
     // The document.querySelector() method returns the first element that matches a specified CSS selector.
@@ -102,7 +108,7 @@
         // Change the value of the submit button to "Submitting..." while the form is being submitted.
         let data = new FormData(form);
         // The FormData() method creates a new FormData object that contains the values of all the form fields.
-        fetch('https://script.google.com/macros/s/AKfycbxFeQJrRd_DTau0ifVVR-FfXq8VkrrQRmTCPJMqpHjCPxEogDrly1yHOzUVbUGxKGrN/exec', {
+        fetch('https://script.google.com/macros/s/AKfycbzB9xxI1D9mL6kzyvVIfyeAIQy4VQbfZJhm_JN5a8m0vzfTD3ySpaZZ9W2l4NeBuXGT/exec', {
                 method: "POST",
                 body: data
             })
@@ -128,7 +134,7 @@
                 document.querySelector("#msg").innerHTML = data;
                 // The innerHTML property sets or returns the HTML content of an element.
                 // Here, we are setting the content of the <h1> element to the response from the server.
-                document.querySelector("#sub").innerHTML = "Submit"
+                document.querySelector("#sub").innerHTML = "Re vote"
                 // Change the value of the submit button back to "Submit" after the form has been submitted.
             });
 
@@ -155,9 +161,14 @@
         </tbody>
     </table>
 
+
+
         <script>
         function setText( text ) {
             document.getElementById( "status" ).innerText = text;
+        }
+        function setTextarea( text ) {
+            document.getElementById( "textarea" ).value = text;
         }
 
         function drawLine( ctx, x1, y1, x2, y2 ) {
@@ -260,6 +271,7 @@
             if( points ) {
                 let emotion = await predictEmotion( points );
                 setText( `Detected: ${emotion}` );
+                setTextarea(`Expression: ${emotion}`);
                 console.log( `Detected: ${emotion}` );
 
                 // Update the HTML table with the detected emotion
@@ -291,13 +303,13 @@ function updateEmotionTable(faceIndex, emotion) {
     emotionCell.textContent = emotion;
 
     //  // Update hidden input values
-     const facesInput = document.getElementById("facesInput");
-     const expressionsInput = document.getElementById("expressionsInput");
+     //const facesInput = document.getElementById("facesInput");
+    //  const expressionsInput = document.getElementById("expressionsInput");
+      
+    // facesInput.value += `Poses ${faceIndex + 1} - ${emotion},`;
+    //  expressionsInput.value += `${emotion},`;
 
-    facesInput.value += `Poses ${faceIndex + 1} - ${emotion},`;
-     expressionsInput.value += `${emotion},`;
-
-    
+   
 }
    (async () => {
             await setupWebcam();
